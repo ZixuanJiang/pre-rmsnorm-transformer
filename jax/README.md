@@ -1,6 +1,7 @@
 We provide the script for measuring the inference and training time of ViT and GPT.
 The implementation is based on [JAX](https://github.com/google/jax) and [Flax](https://github.com/google/flax).
 Run `python vit_infer.py` or `python vit_train.py` to compare the execution time of different Transformer variants.
+`pmap` in JAX allows us to replicate the models over all accelerators (e.g., TPUs, GPUs) and conduct data parallel inference and training automatically.
 
 We have the following variants. Variants 2, 3, and 4 are equivalent.
 
