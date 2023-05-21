@@ -139,7 +139,7 @@ pre_ln_result_2 = pre_normalization_vit(
     cls_head_linear_weight, cls_head_linear_bias,
     norm_layer=layer_norm)
 
-print('pre_ln_result and pre_ln_result_2 are close', torch.allclose(pre_ln_result, pre_ln_result_2))
+print('Pre-LN and Pre-LN-With-Zero-Mean-Main-Branch are close:', torch.allclose(pre_ln_result, pre_ln_result_2))
 
 # %%
 # Variant 3.
@@ -157,8 +157,8 @@ pre_rms_result = pre_normalization_vit(
     cls_head_linear_weight, cls_head_linear_bias,
     norm_layer=rms_norm)
 
-print('pre_ln_result and pre_rms_result are close', torch.allclose(pre_ln_result, pre_rms_result))
-print('pre_ln_result_2 and pre_rms_result are close', torch.allclose(pre_ln_result_2, pre_rms_result))
+print('Pre-LN and Pre-RMSNorm are close:', torch.allclose(pre_ln_result, pre_rms_result))
+print('Pre-LN-With-Zero-Mean-Main-Branch and Pre-RMSNorm are close:', torch.allclose(pre_ln_result_2, pre_rms_result))
 
 # %%
 # Variant 4. We apply lossless compression on the zero-mean vectors.
@@ -192,6 +192,6 @@ pre_crms_result = pre_normalization_vit(
     compressed_cls_head_linear_weight, cls_head_linear_bias,
     norm_layer=crms_norm)
 
-print('pre_ln_result and pre_crms_result are close', torch.allclose(pre_ln_result, pre_crms_result))
-print('pre_ln_result_2 and pre_crms_result are close', torch.allclose(pre_ln_result_2, pre_crms_result))
-print('pre_rms_result and pre_crms_result are close', torch.allclose(pre_rms_result, pre_crms_result))
+print('Pre-LN and Pre-CRMSNorm are close:', torch.allclose(pre_ln_result, pre_crms_result))
+print('Pre-LN-With-Zero-Mean-Main-Branch and Pre-CRMSNorm are close:', torch.allclose(pre_ln_result_2, pre_crms_result))
+print('Pre-RMSNorm and Pre-CRMSNorm are close:', torch.allclose(pre_rms_result, pre_crms_result))
