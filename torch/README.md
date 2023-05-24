@@ -1,9 +1,9 @@
 Our implementation is based on [PyTorch](https://pytorch.org/) and [apex](https://github.com/NVIDIA/apex).
 We provide scripts for measuring the inference and training time of ViT and GPT, as listed below.
 
-1. `vit_infer.py`, inference on a single device
+1. `vit_infer.py`, `gpt_infer.py` inference on a single device
 2. `vit_train_single_gpu.py`, training on a single GPU
-3. `vit_train_ddp.py`, training on multiple GPUs with data parallel training method
+3. `vit_train_ddp.py`, `gpt_train_ddp.py`, training on multiple GPUs with data parallel training method
 
 We have the following variants. Variants 2, 3, and 4 are equivalent.
 

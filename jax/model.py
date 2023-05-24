@@ -235,3 +235,84 @@ class PreDefinedVit(nn.Module):
         assert self.variant in vit_variants
         dim, heads, depth, mlp_dim = vit_variants[self.variant]
         return ViT(self.image_size, self.patch_size, self.num_classes, dim, depth, heads, mlp_dim, pool=self.pool, method=self.method, pre_rms_training=self.pre_rms_training)(x)
+
+
+class GPT(nn.Module):
+    vocab_size: int
+    max_seq_length: int
+    dim: int
+    depth: int
+    heads: int
+    mlp_dim: int = None
+    dim_head: int = None
+    method: str = 'pre-ln'
+    pre_rms_training: bool = False
+
+    @nn.compact
+    def __call__(self, x):
+        if self.dim_head is None:
+            dim_head = self.dim // self.heads
+            assert dim_head * self.heads == self.dim, 'dimension must be divisible by number of heads'
+        else:
+            dim_head = self.dim_head
+        mlp_dim = self.mlp_dim if self.mlp_dim is not None else self.dim * 4
+        dim = self.dim
+        pre_rms_training = self.pre_rms_training and self.method in ['pre-rms', 'pre-customized-rms']
+
+        if self.method == 'pre-ln':
+            norm_layer = functools.partial(nn.LayerNorm, use_scale=False, use_bias=False)
+        elif self.method == 'pre-customized-ln':
+            norm_layer = LayerNorm
+        elif self.method == 'no-normalization':
+            norm_layer = None
+        elif self.method == 'pre-rms':
+            norm_layer = functools.partial(nn.RMSNorm, use_scale=False)
+        elif self.method == 'pre-customized-rms':
+            norm_layer = RMSNorm
+        elif self.method == 'pre-crms':
+            norm_layer = CRMSNorm
+            dim -= 1
+        elif self.method == 'pre-crms-same-dim':
+            norm_layer = CRMSNorm
+        else:
+            raise NotImplementedError
+
+        wte = nn.Embed(num_embeddings=self.vocab_size, features=dim)(x)
+        pos_id = jnp.expand_dims(jnp.arange(0, stop=x.shape[1], dtype=jnp.uint32), axis=0)
+        wpe = nn.Embed(num_embeddings=self.max_seq_length, features=dim)(pos_id)
+
+        h = wte + wpe
+        if self.pre_rms_training:
+            h = h - jnp.mean(h, axis=-1, keepdims=True)
+        h = Transformer(dim, self.depth, self.heads, dim_head, mlp_dim, norm_layer, zero_mean_output=pre_rms_training)(h)
+        if norm_layer is not None:
+            h = norm_layer()(h)
+        h = nn.Dense(features=self.vocab_size)(h)
+        return h
+
+
+gpt3_variants = {  # (depth, dim, heads, dim_head)
+    'Small':  (12, 768,   12, 64),
+    'Medium': (24, 1024,  16, 64),
+    'Large':  (24, 1536,  16, 96),
+    'XL':     (24, 2048,  24, 128),
+    '2.7B':   (32, 2560,  32, 80),
+    '6.7B':   (32, 4096,  32, 128),
+    '13B':    (40, 5140,  40, 128),
+    '175B':   (96, 12288, 96, 128),
+}
+
+
+class PreDefinedGPT3(nn.Module):
+    variant: str
+    vocab_size: int
+    max_seq_length: int
+    method: str = 'pre-ln'
+    pre_rms_training: bool = False
+
+    @nn.compact
+    def __call__(self, x):
+        assert self.variant in gpt3_variants
+        depth, dim, heads, dim_head = gpt3_variants[self.variant]
+        mlp_dim = dim * 4
+        return GPT(self.vocab_size, self.max_seq_length, dim, depth, heads, mlp_dim, dim_head, method=self.method, pre_rms_training=self.pre_rms_training)(x)

@@ -156,3 +156,77 @@ class PreDefinedViT(ViT):
         dim, heads, depth, mlp_dim = vit_variants[variant]
         dim_head = dim // heads
         super().__init__(image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, pool, channels, dim_head, method, pre_rms_training)
+
+
+class GPT(nn.Module):
+    def __init__(self, vocab_size, max_seq_length, dim, depth, heads, mlp_dim, dim_head=None, method='pre-ln', pre_rms_training=False):
+        super().__init__()
+
+        if dim_head is None:
+            dim_head = dim // heads
+            assert dim_head * heads == dim, 'dimension must be divisible by number of heads'
+        if mlp_dim is None:
+            mlp_dim = dim * 4
+
+        self.pre_rms_training = pre_rms_training and method in ['pre-apex-rms', 'pre-rms']
+        if method == 'pre-ln':
+            norm_layer = nn.LayerNorm
+        elif method == 'pre-apex-ln':
+            norm_layer = FusedLayerNorm
+        elif method == 'pre-customized-ln':
+            norm_layer = CustomizedLayerNorm
+        elif method == 'no-normalization':
+            norm_layer = nn.Identity
+        elif method == 'pre-apex-rms':
+            norm_layer = FusedRMSNorm
+        elif method == 'pre-rms':
+            norm_layer = RMSNorm
+        elif method == 'pre-crms':
+            norm_layer = CRMSNorm
+            dim -= 1
+        elif method == 'pre-crms-same-dim':
+            norm_layer = CRMSNorm
+        else:
+            raise NotImplementedError
+
+        self.wte = nn.Embedding(vocab_size, dim)
+        self.wpe = nn.Embedding(max_seq_length, dim)
+
+        self.transformer = Transformer(dim=dim, depth=depth, heads=heads, dim_head=dim_head, mlp_dim=mlp_dim, is_causal=True, norm_layer=norm_layer, zero_mean_output=self.pre_rms_training)
+        self.norm = norm_layer(dim, elementwise_affine=False)
+        self.final_linear = nn.Linear(dim, vocab_size)
+
+    def forward(self, x):
+        b, seq_len = x.size()
+
+        tok_emb = self.wte(x)
+        pos_id = torch.arange(0, seq_len, dtype=torch.long, device=x.device).unsqueeze(0)
+        pos_emb = self.wpe(pos_id)
+
+        h = tok_emb + pos_emb
+        if self.pre_rms_training:
+            h = h - h.mean(dim=-1, keepdim=True)
+        h = self.transformer(h)
+        h = self.norm(h)
+        h = self.final_linear(h)
+        return h
+
+
+gpt3_variants = {  # (depth, dim, heads, dim_head)
+    'Small':  (12, 768,   12, 64),
+    'Medium': (24, 1024,  16, 64),
+    'Large':  (24, 1536,  16, 96),
+    'XL':     (24, 2048,  24, 128),
+    '2.7B':   (32, 2560,  32, 80),
+    '6.7B':   (32, 4096,  32, 128),
+    '13B':    (40, 5140,  40, 128),
+    '175B':   (96, 12288, 96, 128),
+}
+
+
+class PreDefinedGPT3(GPT):
+    def __init__(self, vocab_size, max_seq_length, variant='Small', method='pre-ln', pre_rms_training=False):
+        assert variant in gpt3_variants, f'GPT3 variant {variant} not supported'
+        depth, dim, heads, dim_head = gpt3_variants[variant]
+        mlp_dim = dim * 4
+        super().__init__(vocab_size, max_seq_length, dim, depth, heads, mlp_dim, dim_head, method, pre_rms_training)

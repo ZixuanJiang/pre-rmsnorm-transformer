@@ -38,8 +38,6 @@ cls_head_linear_weight, cls_head_linear_bias = torch.randn(num_classes, dim).to(
 
 # %%
 # define three kinds of normalization
-
-
 def layer_norm(x, eps: float = 1e-5):
     x_mean = x.mean(dim=-1, keepdim=True)
     x_var = x.var(dim=-1, keepdim=True, correction=0)
@@ -56,8 +54,8 @@ def crms_norm(x, eps: float = 1e-5):
 
 # %%
 # define pre-normalization vit
-
-
+# All Transformer variants call the function of pre_normalization_vit with different parameters and normalization methods.
+# It is straightforward to observe how we convert the Pre-LN Transformer into a Pre-(C)RMS variants.
 def attention(x, in_linear_weight, in_linear_bias, out_linear_weight, out_linear_bias, is_causal=False):
     qkv = F.linear(x, in_linear_weight, in_linear_bias).chunk(3, dim=-1)
     q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h=heads), qkv)
@@ -168,15 +166,15 @@ compressed_patch_linear_bias = zm_patch_linear_bias[:-1]  # shape (dim) -> (dim 
 compressed_pos_embedding = zm_pos_embedding[:, :, :-1]  # shape (1, num_patches, dim) -> (1, num_patches, dim - 1)
 compressed_cls_token = zm_cls_token[:, :, :-1]  # shape (1, 1, dim) -> (1, 1, dim - 1)
 
-# compress the input linear projection
-compressed_att_in_linear_weight = att_in_linear_weight[:, :, :-1] - att_in_linear_weight[:, :, -1:]
-compressed_mlp_in_linear_weight = mlp_in_linear_weight[:, :, :-1] - mlp_in_linear_weight[:, :, -1:]
-
 # compress the output linear projection
 compressed_att_out_linear_weight = zm_att_out_linear_weight[:, :-1, :]
 compressed_att_out_linear_bias = zm_att_out_linear_bias[:, :-1]
 compressed_mlp_out_linear_weight = zm_mlp_out_linear_weight[:, :-1, :]
 compressed_mlp_out_linear_bias = zm_mlp_out_linear_bias[:, :-1]
+
+# compress the input linear projection
+compressed_att_in_linear_weight = att_in_linear_weight[:, :, :-1] - att_in_linear_weight[:, :, -1:]
+compressed_mlp_in_linear_weight = mlp_in_linear_weight[:, :, :-1] - mlp_in_linear_weight[:, :, -1:]
 
 # compress the final classification linear head
 compressed_cls_head_linear_weight = cls_head_linear_weight[:, :-1] - cls_head_linear_weight[:, -1:]

@@ -16,7 +16,7 @@ We propose a solution to unify two mainstream Transformer architectures, Pre-LN 
 * flax >= 0.6.9 (optional)
 
 # Structures
-* `example.py`. A demo of translating a Pre-LN Transformer into an equivalent Pre-RMSNorm and Pre-CRMSNorm Transformers.
+* `example.py`. A self-explained demo of translating a Pre-LN Transformer into an equivalent Pre-RMSNorm and Pre-CRMSNorm Transformers.
 Pre-(C)RMSNorm Transformers and equivalence evaluation
 * `jax/`. JAX implementation for comparing the inference and training time of different Transformer variants.
 * `torch/`. PyTorch implementation for comparing the inference and training time of different Transformer variants.
